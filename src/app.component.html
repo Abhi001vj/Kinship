@@ -1,0 +1,201 @@
+
+@if (!authService.isAuthenticated()) {
+  <app-login />
+} @else {
+  <div class="flex h-screen w-full flex-col bg-slate-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm z-10">
+      <div class="flex items-center space-x-3">
+        <div class="bg-rose-100 p-2 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </div>
+        <div>
+           <h1 class="text-xl font-bold text-gray-800 tracking-tight">Kinship</h1>
+           <p class="text-xs text-gray-500">Family Tree Explorer</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <button (click)="openAddModal()" class="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800 transition shadow text-sm font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Add Person</span>
+        </button>
+        <button (click)="authService.logout()" class="text-gray-500 hover:text-gray-700 text-sm">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden relative">
+      <!-- Left Sidebar: Details / Path -->
+      <aside class="w-80 bg-white border-r border-gray-200 flex flex-col z-10 shadow-lg transition-transform" 
+             [class.-translate-x-full]="!selectedPerson()" 
+             [class.translate-x-0]="selectedPerson()">
+        
+        @if (selectedPerson(); as p) {
+          <div class="p-6 overflow-y-auto h-full flex flex-col">
+            <div class="flex justify-end">
+               <button (click)="selectedPersonId.set(null)" class="text-gray-400 hover:text-gray-600">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                   <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                 </svg>
+               </button>
+            </div>
+            
+            <div class="flex flex-col items-center mb-6">
+               @if (p.photoUrl) {
+                 <img [src]="p.photoUrl" class="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md mb-3">
+               } @else {
+                 <img [src]="familyService.getDefaultAvatar(p.gender, p.name)" class="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md mb-3">
+               }
+               <h2 class="text-xl font-bold text-gray-900 text-center">{{ p.name }}</h2>
+               
+               <!-- Inferred Role Badge -->
+               <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold mt-2 shadow-sm"
+                     [class.bg-blue-100]="p.side === 'groom' || p.role === 'groom'" [class.text-blue-800]="p.side === 'groom' || p.role === 'groom'"
+                     [class.bg-pink-100]="p.side === 'bride' || p.role === 'bride'" [class.text-pink-800]="p.side === 'bride' || p.role === 'bride'"
+                     [class.bg-slate-100]="!p.side" [class.text-slate-700]="!p.side">
+                 {{ p.inferredRole || p.role }}
+               </span>
+            </div>
+
+            <div class="space-y-4">
+              <button (click)="editPerson(p)" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 text-sm font-medium">
+                Edit Details
+              </button>
+
+              <div class="pt-4 border-t border-gray-100">
+                 <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Calculate Relationship</h3>
+                 
+                 <button (click)="startRelationshipSelection()" class="w-full mb-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 py-3 px-4 rounded-xl shadow-sm transition-all font-bold text-sm flex items-center justify-center gap-2 group">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Find Connection To...
+                 </button>
+
+                 <!-- Shortcuts -->
+                 <div class="grid grid-cols-2 gap-2">
+                     @if (p.role !== 'groom') {
+                        <button (click)="calculatePath(p.id, familyService.people()[0]?.id || '')" class="w-full text-center px-2 py-2 rounded bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 border border-slate-200">
+                          vs Groom
+                        </button>
+                     }
+                     @if (p.role !== 'bride') {
+                        <button (click)="calculatePath(p.id, familyService.people()[1]?.id || '')" class="w-full text-center px-2 py-2 rounded bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 border border-slate-200">
+                          vs Bride
+                        </button>
+                     }
+                 </div>
+              </div>
+
+              @if (currentPath(); as path) {
+                <div class="mt-4 flex-1 animate-fade-in flex flex-col">
+                   <div class="flex justify-between items-center mb-2">
+                       <h3 class="text-sm font-bold text-stone-700">Result</h3>
+                       <span class="text-xs bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full">{{ path.path.length - 1 }} steps</span>
+                   </div>
+
+                   <!-- AI Result Section -->
+                   @if (relationshipAnalysis(); as analysis) {
+                      <div class="bg-gradient-to-br from-white to-stone-50 rounded-xl border border-stone-200 shadow-sm p-4 relative overflow-hidden">
+                          @if(analysis.loading) {
+                              <div class="flex items-center gap-2 text-rose-500 text-sm font-medium animate-pulse">
+                                  <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Consulting Gemini...
+                              </div>
+                          } @else {
+                              <div class="flex flex-col">
+                                  <span class="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1">Relationship</span>
+                                  <h2 class="text-2xl font-bold text-stone-800 leading-tight mb-2">{{ analysis.title }}</h2>
+                                  <p class="text-sm text-stone-600 leading-relaxed">{{ analysis.explanation }}</p>
+                              </div>
+                              <div class="absolute top-0 right-0 p-2 opacity-10">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-rose-600" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                                  </svg>
+                              </div>
+                          }
+                      </div>
+                   } @else {
+                       <div class="text-xs text-stone-600 bg-white p-3 rounded-xl border border-stone-200 shadow-sm leading-relaxed">
+                         {{ path.description }}
+                       </div>
+                   }
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+           <div class="flex items-center justify-center h-full text-gray-400 p-8 text-center">
+             Select a person from the tree to view details or calculate relationships.
+           </div>
+        }
+      </aside>
+
+      <!-- Visualization Area -->
+      <div class="flex-1 relative bg-slate-50">
+        <!-- Target Selection Overlay -->
+        @if(isSelectingTarget()) {
+            <div class="absolute top-4 inset-x-0 flex justify-center z-30 animate-fade-in pointer-events-none">
+                <div class="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-4 pointer-events-auto">
+                    <span class="font-bold animate-pulse">Select another person on the graph...</span>
+                    <button (click)="cancelRelationshipSelection()" class="bg-indigo-800 hover:bg-indigo-900 rounded-full p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        }
+
+        <app-tree-visualizer 
+          [nodes]="familyService.people()" 
+          [links]="familyService.relationships()"
+          [highlightPath]="currentPath()?.path || []"
+          (nodeSelected)="onNodeSelected($event)"
+          (addRelative)="onAddRelative($event)"
+          class="block w-full h-full"
+        />
+        
+        <!-- Floating controls for generic actions -->
+        <div class="absolute bottom-6 right-6 flex flex-col space-y-2">
+           <button (click)="familyService.resetData()" class="bg-white p-2 rounded-full shadow text-gray-400 hover:text-red-500 hover:bg-red-50" title="Reset Data">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+           </button>
+        </div>
+      </div>
+
+      <!-- Add/Edit Modal (Right Slide-over) -->
+      @if (showEditor()) {
+        <div class="absolute inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 animate-slide-in">
+           <app-person-editor 
+             [mode]="editorMode()" 
+             [initialData]="editorData()"
+             [preselectedRelativeId]="editorPreselectedRelativeId()"
+             (saveComplete)="onEditorComplete($event)" 
+             (cancel)="closeEditor()" 
+            />
+        </div>
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/20 z-40" (click)="closeEditor()"></div>
+      }
+
+      @if (showImporter()) {
+         <div class="absolute inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="w-full max-w-5xl h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in" (click)="$event.stopPropagation()">
+                <app-face-importer (close)="closeImporter()" (saveComplete)="closeImporter()"></app-face-importer>
+            </div>
+         </div>
+      }
+    </main>
+  </div>
+}

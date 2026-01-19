@@ -1,0 +1,5 @@
+{
+  "name": "Kinship - Family Tree Visualizer",
+  "description": "A secure, interactive family tree application for newlyweds to visualize relationships, calculate paths, and generate relationship narratives using AI. Features local encrypted-like storage and D3.js visualization.",
+  "requestFramePermissions": []
+}
